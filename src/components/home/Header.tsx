@@ -158,10 +158,12 @@ export default function Header() {
     syncProfile();
     window.addEventListener("storage", syncProfile);
     window.addEventListener("focus", syncProfile);
+    window.addEventListener("masil-profile-updated", syncProfile);
 
     return () => {
       window.removeEventListener("storage", syncProfile);
       window.removeEventListener("focus", syncProfile);
+      window.removeEventListener("masil-profile-updated", syncProfile);
     };
   }, []);
 

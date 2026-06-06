@@ -201,17 +201,6 @@ const Nickname = styled.h2`
   font-weight: 700;
 `;
 
-const NicknameInput = styled.input`
-  width: 100%;
-  height: 30px;
-  border: 0;
-  border-bottom: 1px solid #e8e8e8;
-  outline: none;
-  color: ${theme.colors.textPrimary};
-  font-size: 18px;
-  font-weight: 700;
-`;
-
 const UserMeta = styled.p`
   margin: 4px 0 0;
   color: ${theme.colors.textMuted};
@@ -744,10 +733,8 @@ export default function ProfilePage() {
   const router = useRouter();
   const [authChecked, setAuthChecked] = useState(false);
   const [nickname, setNickname] = useState("");
-  const [draftNickname, setDraftNickname] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
   const [avatarUrl, setAvatarUrl] = useState(CAT_AVATAR_URL);
-  const [editing, setEditing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sheet, setSheet] = useState<SheetKind | null>(null);
   const [notice, setNotice] = useState("프로필에서 자주 쓰는 기능을 바로 관리할 수 있어요.");
@@ -787,7 +774,6 @@ export default function ProfilePage() {
       const nextNickname = storedUser?.nickname || storedUser?.id || "마실유저";
 
       setNickname(nextNickname);
-      setDraftNickname(nextNickname);
       setNeighborhood(storedUser?.neighborhood ?? "");
       setAvatarUrl(storedUser?.avatarUrl ?? CAT_AVATAR_URL);
       setRole(readUserRole());
@@ -879,29 +865,6 @@ export default function ProfilePage() {
     }
 
     return STATIC_SHEET_CONTENT[kind];
-  };
-
-  const toggleEdit = () => {
-    if (editing) {
-      const nextNickname = draftNickname.trim();
-      if (nextNickname) {
-        setNickname(nextNickname);
-        const storedUser = readStoredUser() ?? {};
-        window.localStorage.setItem(
-          USER_STORAGE_KEY,
-          JSON.stringify({
-            ...storedUser,
-            nickname: nextNickname,
-            neighborhood,
-            avatarUrl,
-          }),
-        );
-        setNotice("프로필 이름이 저장됐어요.");
-      }
-    } else {
-      setDraftNickname(nickname);
-    }
-    setEditing((value) => !value);
   };
 
   const openActivity = (label: (typeof MENUS)[number]["label"]) => {
@@ -1340,21 +1303,13 @@ export default function ProfilePage() {
             <AvatarPhoto src={avatarUrl} alt="" loading="lazy" />
           </Avatar>
           <UserInfo>
-            {editing ? (
-              <NicknameInput
-                aria-label="닉네임"
-                value={draftNickname}
-                onChange={(event) => setDraftNickname(event.target.value)}
-              />
-            ) : (
-              <Nickname>{nickname}</Nickname>
-            )}
+            <Nickname>{nickname}</Nickname>
             <UserMeta>
               {neighborhood || "동네 미설정"} · {role === "guest" ? "일반 손님" : "서래갈매기 사장님"}
             </UserMeta>
           </UserInfo>
-          <EditButton type="button" onClick={toggleEdit}>
-            {editing ? "저장" : "수정"}
+          <EditButton type="button" onClick={() => router.push("/profile/edit")}>
+            수정
           </EditButton>
         </UserRow>
         <StatGrid>

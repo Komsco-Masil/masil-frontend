@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import Link from "next/link";
 import ArrowBackIosNewRoundedIcon from "@mui/icons-material/ArrowBackIosNewRounded";
@@ -9,36 +9,18 @@ import MoreHorizRoundedIcon from "@mui/icons-material/MoreHorizRounded";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import { theme } from "@/styles/theme";
-
-const DAZE_IMAGE_URL =
-  "https://images.unsplash.com/photo-1495360010541-f48722b34f7d?auto=format&fit=crop&w=240&q=80";
-
-const MESSAGES = [
-  {
-    id: 1,
-    from: "other",
-    text: "안녕하세요. 고양이 카페 쿠폰 보고 연락드렸어요.",
-    time: "오후 2:11",
-  },
-  {
-    id: 2,
-    from: "me",
-    text: "네 안녕하세요. 오늘 방문하셔도 사용 가능합니다.",
-    time: "오후 2:12",
-  },
-  {
-    id: 3,
-    from: "other",
-    text: "라떼 메뉴도 쿠폰 적용되나요?",
-    time: "오후 2:12",
-  },
-  {
-    id: 4,
-    from: "me",
-    text: "가능해요. 마실 보고 왔다고 말씀해주시면 안내드릴게요.",
-    time: "오후 2:13",
-  },
-] as const;
+import {
+  DAZE_IMAGE_URL,
+  type ApiChatMessage,
+  type ApiMessageThread,
+  type ChatMessage,
+  type MessageThread,
+  FALLBACK_THREADS,
+  formatChatClock,
+  mapApiThread,
+  readStoredThreads,
+  writeStoredThreads,
+} from "./messageData";
 
 const Page = styled.main`
   min-height: 100dvh;
@@ -346,13 +328,6 @@ const SendButton = styled.button`
   }
 `;
 
-type ChatMessage = {
-  id: number;
-  from: "me" | "other";
-  text: string;
-  time: string;
-};
-
 function getCurrentChatTime() {
   const date = new Date();
   const hours = date.getHours();
@@ -363,8 +338,25 @@ function getCurrentChatTime() {
   return `${period} ${displayHour}:${minutes}`;
 }
 
-export default function MessageDetailPage() {
-  const [messages, setMessages] = useState<ChatMessage[]>([...MESSAGES]);
+function findThread(threadId: string) {
+  const id = Number(threadId);
+  return readStoredThreads().find((thread) => thread.id === id) ?? FALLBACK_THREADS[0];
+}
+
+function persistThread(nextThread: MessageThread) {
+  const threads = readStoredThreads();
+  const exists = threads.some((thread) => thread.id === nextThread.id);
+  const nextThreads = exists
+    ? threads.map((thread) => (thread.id === nextThread.id ? nextThread : thread))
+    : [nextThread, ...threads];
+
+  writeStoredThreads(nextThreads);
+}
+
+export default function MessageDetailPage({ threadId }: { threadId: string }) {
+  const localMessageId = useRef(-1);
+  const [thread, setThread] = useState<MessageThread>(() => FALLBACK_THREADS[0]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [attachmentOpen, setAttachmentOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -372,6 +364,79 @@ export default function MessageDetailPage() {
   const [blocked, setBlocked] = useState(false);
   const canSend = draft.trim().length > 0;
   const quickAttachments = useMemo(() => ["사진", "쿠폰", "위치"], []);
+
+  const createLocalMessageId = () => {
+    localMessageId.current -= 1;
+    return localMessageId.current;
+  };
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      const nextThread = findThread(threadId);
+      setThread(nextThread);
+      setMessages(nextThread.messages);
+      setMuted(Boolean(nextThread.muted));
+      setBlocked(Boolean(nextThread.blocked));
+    });
+
+    const token = window.localStorage.getItem("masil.accessToken");
+    if (!token) return;
+
+    void fetch(`/api/masil/messages/threads/${threadId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("message api unavailable");
+        return response.json() as Promise<ApiMessageThread>;
+      })
+      .then((apiThread) => {
+        const nextThread = mapApiThread(apiThread);
+        setThread(nextThread);
+        setMessages(nextThread.messages);
+        setMuted(Boolean(nextThread.muted));
+        setBlocked(Boolean(nextThread.blocked));
+        persistThread(nextThread);
+      })
+      .catch(() => undefined);
+  }, [threadId]);
+
+  const appendMessage = (message: ChatMessage) => {
+    const nextMessages = [...messages, message];
+    const nextThread = {
+      ...thread,
+      message: message.text,
+      time: "방금",
+      unread: 0,
+      messages: nextMessages,
+    };
+
+    setMessages(nextMessages);
+    setThread(nextThread);
+    persistThread(nextThread);
+  };
+
+  const patchThread = (patch: Partial<MessageThread>) => {
+    const nextThread = { ...thread, ...patch };
+    setThread(nextThread);
+    persistThread(nextThread);
+
+    const token = window.localStorage.getItem("masil.accessToken");
+    if (!token) return;
+
+    void fetch(`/api/masil/messages/threads/${thread.id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        muted: patch.muted,
+        blocked: patch.blocked,
+        unread_count: patch.unread,
+      }),
+    }).catch(() => undefined);
+  };
 
   const submitMessage = (event?: FormEvent) => {
     event?.preventDefault();
@@ -381,15 +446,44 @@ export default function MessageDetailPage() {
 
     if (blocked) return;
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        from: "me",
-        text,
-        time: getCurrentChatTime(),
-      },
-    ]);
+    const optimisticMessage = {
+      id: createLocalMessageId(),
+      from: "me" as const,
+      text,
+      time: getCurrentChatTime(),
+    };
+    appendMessage(optimisticMessage);
+
+    const token = window.localStorage.getItem("masil.accessToken");
+    if (token) {
+      void fetch(`/api/masil/messages/threads/${thread.id}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ text }),
+      })
+        .then((response) => {
+          if (!response.ok) throw new Error("message send failed");
+          return response.json() as Promise<ApiChatMessage>;
+        })
+        .then((apiMessage) => {
+          const savedMessage = {
+            id: apiMessage.id,
+            from: apiMessage.sender,
+            text: apiMessage.text,
+            time: formatChatClock(apiMessage.created_at),
+          };
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === optimisticMessage.id ? savedMessage : message,
+            ),
+          );
+        })
+        .catch(() => undefined);
+    }
+
     setDraft("");
     setAttachmentOpen(false);
   };
@@ -397,15 +491,12 @@ export default function MessageDetailPage() {
   const sendAttachment = (label: string) => {
     if (blocked) return;
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        from: "me",
-        text: `${label}을 보냈습니다.`,
-        time: getCurrentChatTime(),
-      },
-    ]);
+    appendMessage({
+      id: createLocalMessageId(),
+      from: "me",
+      text: `${label}을 보냈습니다.`,
+      time: getCurrentChatTime(),
+    });
     setAttachmentOpen(false);
   };
 
@@ -416,7 +507,7 @@ export default function MessageDetailPage() {
           <ArrowBackIosNewRoundedIcon aria-hidden />
         </BackLink>
         <HeaderCenter>
-          <Name>데이즈</Name>
+          <Name>{thread.name}</Name>
           <Status>보통 10분 안에 응답해요</Status>
         </HeaderCenter>
         <MoreButton type="button" aria-label="더보기" onClick={() => setMenuOpen(true)}>
@@ -425,11 +516,11 @@ export default function MessageDetailPage() {
       </Header>
       <SummaryCard>
         <StoreThumb>
-          <StoreThumbPhoto src={DAZE_IMAGE_URL} alt="고양이카페 DAZE" loading="lazy" />
+          <StoreThumbPhoto src={thread.storeImageUrl ?? DAZE_IMAGE_URL} alt={thread.storeName} loading="lazy" />
         </StoreThumb>
         <SummaryText>
-          <SummaryTitle>고양이카페 DAZE</SummaryTitle>
-          <SummaryMeta>대전 유성구 · 마실 쿠폰 문의</SummaryMeta>
+          <SummaryTitle>{thread.storeName}</SummaryTitle>
+          <SummaryMeta>{thread.storeAddress}</SummaryMeta>
         </SummaryText>
         <CouponBadge>쿠폰</CouponBadge>
       </SummaryCard>
@@ -495,7 +586,9 @@ export default function MessageDetailPage() {
             <SheetAction
               type="button"
               onClick={() => {
-                setMuted((current) => !current);
+                const nextMuted = !muted;
+                setMuted(nextMuted);
+                patchThread({ muted: nextMuted });
                 setMenuOpen(false);
               }}
             >
@@ -504,15 +597,12 @@ export default function MessageDetailPage() {
             <SheetAction
               type="button"
               onClick={() => {
-                setMessages((current) => [
-                  ...current,
-                  {
-                    id: Date.now(),
-                    from: "me",
-                    text: "쿠폰 사용 가능 시간을 다시 안내해주세요.",
-                    time: getCurrentChatTime(),
-                  },
-                ]);
+                appendMessage({
+                  id: createLocalMessageId(),
+                  from: "me",
+                  text: "쿠폰 사용 가능 시간을 다시 안내해주세요.",
+                  time: getCurrentChatTime(),
+                });
                 setMenuOpen(false);
               }}
             >
@@ -523,6 +613,7 @@ export default function MessageDetailPage() {
               $danger
               onClick={() => {
                 setBlocked(true);
+                patchThread({ blocked: true });
                 setMenuOpen(false);
               }}
             >

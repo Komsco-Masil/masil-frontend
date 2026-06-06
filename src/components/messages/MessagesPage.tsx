@@ -1,63 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styled from "@emotion/styled";
 import Link from "next/link";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
 import { theme } from "@/styles/theme";
-
-const CAT_IMAGE_URL =
-  "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=240&q=80";
-const DAZE_IMAGE_URL =
-  "https://images.unsplash.com/photo-1495360010541-f48722b34f7d?auto=format&fit=crop&w=420&q=80";
-
-const THREADS = [
-  {
-    id: 1,
-    name: "데이즈",
-    tag: "홍보왕",
-    time: "5시간 전",
-    message: "광고봤는데 진짜 쿠폰더 있나요? 라떼요 여쭤요.",
-    unread: 0,
-    avatar: "cat",
-  },
-  {
-    id: 2,
-    name: "주먹펴고일어서",
-    tag: "홍보왕",
-    time: "7시간 전",
-    message: "이 편지는 영국에서부터 시작되어...",
-    unread: 1,
-    avatar: "mascot",
-  },
-  {
-    id: 3,
-    name: "주먹펴고일어서",
-    tag: "홍보왕",
-    time: "7시간 전",
-    message: "이 편지는 영국에서부터 시작되어...",
-    unread: 1,
-    avatar: "mascot",
-  },
-  {
-    id: 4,
-    name: "주먹펴고일어서",
-    tag: "홍보왕",
-    time: "7시간 전",
-    message: "이 편지는 영국에서부터 시작되어...",
-    unread: 1,
-    avatar: "mascot",
-  },
-  {
-    id: 5,
-    name: "주먹펴고일어서",
-    tag: "홍보왕",
-    time: "7시간 전",
-    message: "이 편지는 영국에서부터 시작되어...",
-    unread: 1,
-    avatar: "mascot",
-  },
-] as const;
+import {
+  CAT_IMAGE_URL,
+  DAZE_IMAGE_URL,
+  type ApiMessageThread,
+  type MessageThread,
+  mapApiThread,
+  readStoredThreads,
+  writeStoredThreads,
+} from "./messageData";
 
 const Page = styled.main`
   min-height: 100dvh;
@@ -186,7 +142,7 @@ const ThreadItem = styled(Link)`
   background: ${theme.colors.white};
 `;
 
-const Avatar = styled.div<{ $kind: (typeof THREADS)[number]["avatar"] }>`
+const Avatar = styled.div<{ $kind: MessageThread["avatar"] }>`
   position: relative;
   width: 48px;
   height: 48px;
@@ -275,9 +231,33 @@ type MessageFilter = "all" | "unread";
 
 export default function MessagesPage() {
   const [filter, setFilter] = useState<MessageFilter>("all");
+  const [threads, setThreads] = useState<Array<MessageThread>>([]);
+
+  useEffect(() => {
+    queueMicrotask(() => setThreads(readStoredThreads()));
+
+    const token = window.localStorage.getItem("masil.accessToken");
+    if (!token) return;
+
+    void fetch("/api/masil/messages/threads", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("message api unavailable");
+        return response.json() as Promise<Array<ApiMessageThread>>;
+      })
+      .then((apiThreads) => {
+        const nextThreads = apiThreads.map(mapApiThread);
+        setThreads(nextThreads);
+        writeStoredThreads(nextThreads);
+      })
+      .catch(() => undefined);
+  }, []);
+
   const visibleThreads = useMemo(
-    () => THREADS.filter((thread) => filter === "all" || thread.unread > 0),
-    [filter],
+    () => threads.filter((thread) => filter === "all" || thread.unread > 0),
+    [filter, threads],
   );
 
   return (
@@ -319,7 +299,7 @@ export default function MessagesPage() {
         {visibleThreads.map((thread) => (
           <ThreadItem key={thread.id} href={`/messages/${thread.id}`}>
             <Avatar $kind={thread.avatar}>
-              <AvatarPhoto src={CAT_IMAGE_URL} alt="" loading="lazy" />
+              <AvatarPhoto src={thread.storeImageUrl ?? CAT_IMAGE_URL} alt="" loading="lazy" />
             </Avatar>
             <ThreadContent>
               <ThreadTop>
@@ -332,6 +312,7 @@ export default function MessagesPage() {
             {thread.unread > 0 && <UnreadBadge>{thread.unread}</UnreadBadge>}
           </ThreadItem>
         ))}
+        {visibleThreads.length === 0 && <MessagePreview>아직 대화가 없어요.</MessagePreview>}
       </ThreadList>
     </Page>
   );
