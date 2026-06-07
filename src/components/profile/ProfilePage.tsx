@@ -779,8 +779,6 @@ export default function ProfilePage() {
   const [role, setRole] = useState<UserRole>("guest");
   const [businessNumber, setBusinessNumber] = useState("");
   const [storeName, setStoreName] = useState("");
-  const [storeAddress, setStoreAddress] = useState("");
-  const [businessStartDate, setBusinessStartDate] = useState("");
   const [representativeName, setRepresentativeName] = useState("");
   const [verifiedStore, setVerifiedStore] = useState<VerifiedStore | null>(null);
   const [verifyingStore, setVerifyingStore] = useState(false);
@@ -932,8 +930,6 @@ export default function ProfilePage() {
     const payload = {
       business_number: businessNumber.replaceAll("-", "").trim(),
       name: storeName.trim(),
-      address: storeAddress.trim(),
-      start_date: businessStartDate.replaceAll(".", "").replaceAll("-", "").trim(),
       representative_name: representativeName.trim(),
     };
 
@@ -941,8 +937,8 @@ export default function ProfilePage() {
       router.replace("/login");
       return;
     }
-    if (!payload.business_number || !payload.name || !payload.representative_name || !payload.address) {
-      setNotice("사업자번호, 가게명, 대표자명, 주소는 꼭 입력해주세요.");
+    if (!payload.business_number || !payload.name || !payload.representative_name) {
+      setNotice("사업자번호, 가게명, 대표자명은 꼭 입력해주세요.");
       return;
     }
 
@@ -1225,8 +1221,8 @@ export default function ProfilePage() {
                   {role === "guest" ? "일반 손님" : role === "staff" ? "직원 권한 연결" : "가맹점 인증 완료"}
                 </RoleBadge>
                 <VerifyDesc>
-                  사업자번호, 가게명, 대표자명을 공공데이터와 대조합니다. 주소는 가게 표시와
-                  지역 확인에 사용하고, 개업일자는 필요할 때만 참고값으로 입력합니다.
+                  사업자번호, 가게명, 대표자명을 공공데이터와 대조합니다. 이 세 값이 맞으면
+                  가게 홍보와 소상공인 익명 게시판 권한이 열립니다.
                 </VerifyDesc>
                 <PublicDataChecks>
                   <PublicDataCheck $done={verifiedStore?.nts_verified} $pending={verifiedStore?.is_manual_review}>
@@ -1266,19 +1262,6 @@ export default function ProfilePage() {
                       onChange={(event) => setStoreName(event.target.value)}
                       placeholder="가게명"
                       aria-label="가게명"
-                    />
-                    <VerifyInput
-                      value={storeAddress}
-                      onChange={(event) => setStoreAddress(event.target.value)}
-                      placeholder="사업장 주소"
-                      aria-label="사업장 주소"
-                    />
-                    <VerifyInput
-                      value={businessStartDate}
-                      onChange={(event) => setBusinessStartDate(event.target.value)}
-                      placeholder="개업일자 선택 입력 예: 20240101"
-                      inputMode="numeric"
-                      aria-label="개업일자"
                     />
                     <VerifyInput
                       value={representativeName}
