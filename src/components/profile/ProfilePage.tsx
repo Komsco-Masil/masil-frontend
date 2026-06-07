@@ -1391,7 +1391,7 @@ export default function ProfilePage() {
               {verifiedStore?.is_manual_review
                 ? "공공데이터 수동 검토 접수"
                 : verifiedStore?.gift_card_verified
-                  ? "상품권 가맹점 공공데이터 확인"
+                  ? "지역사랑상품권 가맹점"
                   : "국세청 사업자 인증 완료"} ·{" "}
               {verifiedStore?.address ?? "소상공인 게시판 이용 가능"}
             </StoreMeta>

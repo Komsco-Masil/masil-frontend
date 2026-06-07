@@ -726,7 +726,7 @@ export default function StoreSection() {
               {store.giftCardVerified && (
                 <DataBadge>
                   <LocalOfferRoundedIcon aria-hidden />
-                  공공데이터 확인
+                  지역사랑상품권 가맹점
                 </DataBadge>
               )}
             </CardImage>
