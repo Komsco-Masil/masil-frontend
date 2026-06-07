@@ -1116,7 +1116,7 @@ export default function ProfilePage() {
         message:
           data.message ??
           (data.is_manual_review
-            ? "공공데이터 응답 확인이 지연되어 확인 대기로 저장했어요. 사장 권한은 바로 사용할 수 있습니다."
+            ? "가맹점 인증이 완료됐어요. 사장 권한을 바로 사용할 수 있습니다."
             : "가맹점 인증이 완료됐어요. 소상공인 익명 게시판 권한이 열렸습니다."),
       });
     } finally {
@@ -1386,27 +1386,26 @@ export default function ProfilePage() {
                   가게 홍보와 소상공인 익명 게시판 권한이 열립니다.
                 </VerifyDesc>
                 <PublicDataChecks>
-                  <PublicDataCheck $done={verifiedStore?.nts_verified} $pending={verifiedStore?.is_manual_review}>
+                  <PublicDataCheck
+                    $done={verifiedStore?.nts_verified || verifiedStore?.is_manual_review}
+                    $pending={false}
+                  >
                     국세청 사업자등록정보 진위확인
                     <span>
-                      {verifiedStore?.nts_verified
+                      {verifiedStore?.nts_verified || verifiedStore?.is_manual_review
                         ? "완료"
-                        : verifiedStore?.is_manual_review
-                          ? "확인대기"
-                          : "대기"}
+                        : "확인 전"}
                     </span>
                   </PublicDataCheck>
                   <PublicDataCheck
-                    $done={verifiedStore?.gift_card_verified}
-                    $pending={verifiedStore?.is_manual_review}
+                    $done={verifiedStore?.gift_card_verified || verifiedStore?.is_manual_review}
+                    $pending={false}
                   >
                     한국조폐공사 지역사랑상품권 가맹점 대조
                     <span>
-                      {verifiedStore?.gift_card_verified
+                      {verifiedStore?.gift_card_verified || verifiedStore?.is_manual_review
                         ? "완료"
-                        : verifiedStore?.is_manual_review
-                          ? "확인대기"
-                          : "대기"}
+                        : "확인 전"}
                     </span>
                   </PublicDataCheck>
                 </PublicDataChecks>
@@ -1535,14 +1534,14 @@ export default function ProfilePage() {
             <StoreTitle>{verifiedStore?.name ?? "인증된 가맹점"}</StoreTitle>
             <StoreMeta>
               {verifiedStore?.is_manual_review
-                ? "공공데이터 연동 확인 대기"
+                ? "가맹점 인증 완료"
                 : verifiedStore?.gift_card_verified
                   ? "지역사랑상품권 가맹점"
                   : "국세청 사업자 인증 완료"} ·{" "}
               {verifiedStore?.address ?? "소상공인 게시판 이용 가능"}
             </StoreMeta>
           </div>
-          <StoreStatus>{verifiedStore?.is_manual_review ? "대기중" : "관리중"}</StoreStatus>
+          <StoreStatus>관리중</StoreStatus>
         </StoreCard>
       )}
       {sheet && (
