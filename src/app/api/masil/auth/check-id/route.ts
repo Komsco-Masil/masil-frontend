@@ -1,5 +1,4 @@
-const MASIL_API_BASE_URL =
-  process.env.MASIL_API_BASE_URL ?? "http://localhost:8000/api";
+import { MASIL_API_BASE_URL } from "@/lib/masilApi";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

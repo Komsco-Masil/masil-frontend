@@ -1,5 +1,4 @@
-const MASIL_API_BASE_URL =
-  process.env.MASIL_API_BASE_URL ?? "http://localhost:8000/api";
+import { MASIL_API_BASE_URL } from "@/lib/masilApi";
 
 type SocialLoginPayload = {
   provider?: string;

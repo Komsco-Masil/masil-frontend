@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styled from "@emotion/styled";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import StarIcon from "@mui/icons-material/Star";
@@ -18,6 +18,8 @@ const STORES = [
     rating: 4.5,
     reviewCount: 38,
     tags: ["국물이 진함", "혼밥 가능", "상품권 결제"],
+    giftCardVerified: true,
+    publicDataSource: "한국조폐공사 지역사랑상품권 가맹점 기본정보",
     reviews: ["면이 부드럽고 국물이 자극적이지 않아요.", "점심 피크만 피하면 회전도 빠른 편입니다."],
     variant: "noodle",
     imageUrl:
@@ -30,6 +32,8 @@ const STORES = [
     rating: 4.3,
     reviewCount: 51,
     tags: ["저녁 모임", "단체석", "상품권 결제"],
+    giftCardVerified: true,
+    publicDataSource: "한국조폐공사 지역사랑상품권 가맹점 기본정보",
     reviews: ["갈매기살이 깔끔하고 직원분 응대가 빨라요.", "동네 모임 잡을 때 실패 확률이 낮은 곳."],
     variant: "grill",
     imageUrl:
@@ -41,7 +45,9 @@ const STORES = [
     location: "대전 유성구 덕명동",
     rating: 4.7,
     reviewCount: 24,
-    tags: ["디저트", "작업하기 좋음", "조용함"],
+    tags: ["디저트", "작업하기 좋음", "상품권 결제"],
+    giftCardVerified: true,
+    publicDataSource: "한국조폐공사 지역사랑상품권 가맹점 기본정보",
     reviews: ["콘센트 자리가 많고 커피가 무난하게 맛있어요.", "창가 쪽 분위기가 좋아서 재방문했어요."],
     variant: "cafe",
     imageUrl:
@@ -54,6 +60,8 @@ const STORES = [
     rating: 4.2,
     reviewCount: 17,
     tags: ["빠른 수선", "친절함", "생활"],
+    giftCardVerified: false,
+    publicDataSource: "마실 리뷰 데이터",
     reviews: ["셔츠 맡겼는데 약속 시간보다 빨리 나왔어요.", "사장님이 얼룩 설명을 자세히 해주십니다."],
     variant: "life",
     imageUrl:
@@ -66,6 +74,8 @@ const STORES = [
     rating: 4.6,
     reviewCount: 29,
     tags: ["초등 영어", "소수정예", "상담 친절"],
+    giftCardVerified: false,
+    publicDataSource: "마실 리뷰 데이터",
     reviews: ["아이 수준에 맞춰 숙제를 조절해줘서 좋아요.", "상담 때 수업 방향을 현실적으로 말해줍니다."],
     variant: "academy",
     imageUrl:
@@ -74,6 +84,25 @@ const STORES = [
 ] as const;
 
 const CATEGORIES = ["전체", "식당", "카페", "생활", "학원"] as const;
+
+type PublicDataSummary = {
+  title: string;
+  description: string;
+  sources: Array<{
+    name: string;
+    provider: string;
+    purpose: string;
+    status: string;
+  }>;
+  stores: Array<{
+    id: string;
+    name: string;
+    address: string;
+    category: string;
+    gift_card_verified: boolean;
+    source: string;
+  }>;
+};
 
 const Section = styled.section`
   margin-top: 17px;
@@ -131,6 +160,63 @@ const CategoryTabs = styled.div`
   &::-webkit-scrollbar {
     display: none;
   }
+`;
+
+const PublicDataPanel = styled.section`
+  display: grid;
+  gap: 9px;
+  margin: 0 24px 14px;
+  padding: 12px 13px;
+  border: 1px solid #e7f3ef;
+  border-radius: 8px;
+  background: #fbfefd;
+`;
+
+const PublicDataTitle = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #17313a;
+  font-size: 12px;
+  font-weight: 800;
+
+  svg {
+    color: #37c9a2;
+    font-size: 16px;
+  }
+`;
+
+const PublicDataDesc = styled.p`
+  margin: 0;
+  color: #757575;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.5;
+`;
+
+const SourceRow = styled.div`
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+`;
+
+const SourceChip = styled.span`
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: #fff;
+  color: #4f6962;
+  font-size: 9px;
+  font-weight: 700;
+  border: 1px solid #e1eee9;
 `;
 
 const CategoryButton = styled.button<{ $active?: boolean }>`
@@ -312,6 +398,27 @@ const RatingBadge = styled.span`
   }
 `;
 
+const DataBadge = styled.span`
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 21px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #267761;
+  font-size: 9px;
+  font-weight: 800;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.15);
+
+  svg {
+    font-size: 12px;
+  }
+`;
+
 const CardName = styled.h3`
   margin: 10px 0 4px;
   font-size: 12px;
@@ -431,6 +538,26 @@ const SheetLocation = styled.p`
   }
 `;
 
+const DataNotice = styled.div`
+  display: grid;
+  gap: 4px;
+  margin: 14px 0 0;
+  padding: 11px 12px;
+  border-radius: 8px;
+  background: #f6fbf9;
+  border: 1px solid #e4f2ed;
+  color: #2d6658;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.45;
+
+  span {
+    color: #78918a;
+    font-size: 10px;
+    font-weight: 500;
+  }
+`;
+
 const TagRow = styled.div`
   display: flex;
   flex-wrap: wrap;
@@ -506,6 +633,18 @@ const SheetAction = styled.button<{ $primary?: boolean }>`
 export default function StoreSection() {
   const [activeCategory, setActiveCategory] = useState<(typeof CATEGORIES)[number]>("전체");
   const [selectedStore, setSelectedStore] = useState<(typeof STORES)[number] | null>(null);
+  const [publicData, setPublicData] = useState<PublicDataSummary | null>(null);
+
+  useEffect(() => {
+    void fetch("/api/masil/stores/public-data/summary", { cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) throw new Error("public data unavailable");
+        return response.json() as Promise<PublicDataSummary>;
+      })
+      .then(setPublicData)
+      .catch(() => undefined);
+  }, []);
+
   const visibleStores = useMemo(() => {
     if (activeCategory === "전체") return STORES;
     if (activeCategory === "식당") {
@@ -541,6 +680,26 @@ export default function StoreSection() {
           <ChevronRightIcon fontSize="small" aria-hidden />
         </MoreLink>
       </SectionHeader>
+      <PublicDataPanel>
+        <PublicDataTitle>
+          <LocalOfferRoundedIcon aria-hidden />
+          {publicData?.title ?? "공공데이터 기반 지역사랑상품권 가맹점"}
+        </PublicDataTitle>
+        <PublicDataDesc>
+          {publicData?.description ??
+            "국세청 사업자등록정보와 한국조폐공사 지역사랑상품권 가맹점 데이터를 함께 대조합니다."}
+        </PublicDataDesc>
+        <SourceRow>
+          {(publicData?.sources ?? [
+            { name: "사업자등록정보 진위확인", status: "인증 단계 적용" },
+            { name: "지역사랑상품권 가맹점 기본정보", status: "추천 가게 표시 적용" },
+          ]).map((source) => (
+            <SourceChip key={source.name}>
+              {source.name} · {source.status}
+            </SourceChip>
+          ))}
+        </SourceRow>
+      </PublicDataPanel>
       <CategoryTabs aria-label="추천 가게 카테고리">
         {CATEGORIES.map((category) => (
           <CategoryButton
@@ -564,6 +723,12 @@ export default function StoreSection() {
                 <StarIcon fontSize="inherit" aria-hidden />
                 {store.rating}
               </RatingBadge>
+              {store.giftCardVerified && (
+                <DataBadge>
+                  <LocalOfferRoundedIcon aria-hidden />
+                  공공데이터 확인
+                </DataBadge>
+              )}
             </CardImage>
             <CardName>{store.name}</CardName>
             <CardLocation>{store.location}</CardLocation>
@@ -600,6 +765,12 @@ export default function StoreSection() {
                   <span>({selectedStore.reviewCount})</span>
                 </SheetRating>
               </SheetTitleRow>
+              {selectedStore.giftCardVerified && (
+                <DataNotice>
+                  지역사랑상품권 결제 가능 가맹점으로 확인됐어요.
+                  <span>{selectedStore.publicDataSource}</span>
+                </DataNotice>
+              )}
               <TagRow>
                 {selectedStore.tags.map((tag) => (
                   <ReviewTag key={tag}>{tag}</ReviewTag>

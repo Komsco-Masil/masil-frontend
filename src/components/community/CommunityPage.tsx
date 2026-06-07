@@ -441,7 +441,7 @@ export default function CommunityPage() {
                 {post.giftCertificate && (
                   <GiftBadge>
                     <LocalOfferRoundedIcon aria-hidden />
-                    상품권 결제 가능
+                    공공데이터 확인
                   </GiftBadge>
                 )}
               </BoardRow>

@@ -599,6 +599,32 @@ const VerifyDesc = styled.p`
   line-height: 1.5;
 `;
 
+const PublicDataChecks = styled.div`
+  display: grid;
+  gap: 6px;
+  padding: 10px 11px;
+  border-radius: 8px;
+  border: 1px solid #e4f2ed;
+  background: #f8fcfb;
+`;
+
+const PublicDataCheck = styled.div<{ $done?: boolean; $pending?: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: ${({ $done, $pending }) => ($done ? "#267761" : $pending ? "#9a7b35" : theme.colors.textSecondary)};
+  font-size: 11px;
+  font-weight: 600;
+
+  span {
+    flex-shrink: 0;
+    color: ${({ $done, $pending }) => ($done ? "#37c9a2" : $pending ? "#d29a24" : "#aaa")};
+    font-size: 10px;
+    font-weight: 800;
+  }
+`;
+
 const VerifyGrid = styled.div`
   display: grid;
   gap: 8px;
@@ -688,6 +714,10 @@ type VerifiedStore = {
   name?: string;
   address?: string;
   is_manual_review?: boolean;
+  nts_verified?: boolean;
+  gift_card_verified?: boolean;
+  public_data_source?: string | null;
+  verified_at?: string | null;
   message?: string | null;
 };
 
@@ -1195,9 +1225,34 @@ export default function ProfilePage() {
                   {role === "guest" ? "일반 손님" : role === "staff" ? "직원 권한 연결" : "가맹점 인증 완료"}
                 </RoleBadge>
                 <VerifyDesc>
-                  지역사랑상품권 가맹점 데이터와 일치하면 가게 홍보와 소상공인 익명 게시판
-                  권한이 열립니다.
+                  국세청 사업자등록정보와 한국조폐공사 지역사랑상품권 가맹점 데이터를 함께
+                  대조합니다. 두 데이터가 맞으면 가게 홍보와 소상공인 익명 게시판 권한이 열립니다.
                 </VerifyDesc>
+                <PublicDataChecks>
+                  <PublicDataCheck $done={verifiedStore?.nts_verified} $pending={verifiedStore?.is_manual_review}>
+                    국세청 사업자등록정보 진위확인
+                    <span>
+                      {verifiedStore?.nts_verified
+                        ? "완료"
+                        : verifiedStore?.is_manual_review
+                          ? "검토중"
+                          : "대기"}
+                    </span>
+                  </PublicDataCheck>
+                  <PublicDataCheck
+                    $done={verifiedStore?.gift_card_verified}
+                    $pending={verifiedStore?.is_manual_review}
+                  >
+                    한국조폐공사 지역사랑상품권 가맹점 대조
+                    <span>
+                      {verifiedStore?.gift_card_verified
+                        ? "완료"
+                        : verifiedStore?.is_manual_review
+                          ? "검토중"
+                          : "대기"}
+                    </span>
+                  </PublicDataCheck>
+                </PublicDataChecks>
                 {role === "guest" ? (
                   <VerifyGrid>
                     <VerifyInput
@@ -1249,6 +1304,10 @@ export default function ProfilePage() {
                   <VerifyGrid>
                     <VerifyDesc>
                       {verifiedStore?.name ?? "인증된 가게"} · {verifiedStore?.address ?? "주소 확인됨"}
+                    </VerifyDesc>
+                    <VerifyDesc>
+                      {verifiedStore?.public_data_source ??
+                        "국세청 사업자등록정보 + 한국조폐공사 지역사랑상품권 가맹점 기본정보"}
                     </VerifyDesc>
                     {role === "owner" && (
                       <SecondaryButton type="button" onClick={issueInviteCode} disabled={inviteBusy}>
@@ -1329,7 +1388,11 @@ export default function ProfilePage() {
           <div>
             <StoreTitle>{verifiedStore?.name ?? "인증된 가맹점"}</StoreTitle>
             <StoreMeta>
-              {verifiedStore?.is_manual_review ? "수동 검토 접수" : "국세청 사업자 인증 완료"} ·{" "}
+              {verifiedStore?.is_manual_review
+                ? "공공데이터 수동 검토 접수"
+                : verifiedStore?.gift_card_verified
+                  ? "상품권 가맹점 공공데이터 확인"
+                  : "국세청 사업자 인증 완료"} ·{" "}
               {verifiedStore?.address ?? "소상공인 게시판 이용 가능"}
             </StoreMeta>
           </div>

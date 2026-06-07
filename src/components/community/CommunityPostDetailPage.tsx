@@ -872,7 +872,7 @@ export default function CommunityPostDetailPage({ postId }: { postId: string }) 
           {post.giftCertificate && (
             <Pill>
               <LocalOfferRoundedIcon aria-hidden />
-              지역사랑상품권 결제 가능
+              지역사랑상품권 공공데이터 확인
             </Pill>
           )}
         </BadgeRow>
