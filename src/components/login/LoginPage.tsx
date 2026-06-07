@@ -17,8 +17,11 @@ type TokenResponse = {
   token_type: string;
   user?: {
     id?: number | string;
+    username?: string;
     nickname?: string;
+    display_name?: string;
     neighborhood?: string;
+    avatar_url?: string | null;
     provider?: string;
   };
 };
@@ -266,7 +269,17 @@ export default function LoginPage() {
 
   const canSubmit = userId.trim().length >= 2 && password.length >= 4;
 
-  const saveSession = (tokens: TokenResponse, fallbackUser?: { id?: string; nickname?: string; neighborhood?: string }) => {
+  const saveSession = (
+    tokens: TokenResponse,
+    fallbackUser?: {
+      id?: string;
+      username?: string;
+      nickname?: string;
+      display_name?: string;
+      neighborhood?: string;
+      avatar_url?: string | null;
+    },
+  ) => {
     const user = tokens.user ?? fallbackUser;
 
     window.localStorage.setItem("masil.accessToken", tokens.access_token);
@@ -275,8 +288,10 @@ export default function LoginPage() {
       "masil.user",
       JSON.stringify({
         id: user?.id ?? userId.trim(),
-        nickname: user?.nickname ?? userId.trim(),
+        loginId: user?.username ?? user?.nickname ?? userId.trim(),
+        nickname: user?.display_name ?? user?.nickname ?? userId.trim(),
         neighborhood: user?.neighborhood ?? "",
+        avatarUrl: user?.avatar_url ?? undefined,
         provider: tokens.user?.provider ?? "LOCAL",
         loggedInAt: new Date().toISOString(),
       }),

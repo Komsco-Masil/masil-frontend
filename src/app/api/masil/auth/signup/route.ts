@@ -1,7 +1,9 @@
 import { MASIL_API_BASE_URL } from "@/lib/masilApi";
 
 type SignupPayload = {
+  username?: string;
   nickname?: string;
+  displayName?: string;
   neighborhood?: string;
   password?: string;
   is_terms_agreed?: boolean;
@@ -16,11 +18,12 @@ export async function POST(request: Request) {
     return Response.json({ detail: "요청 형식이 올바르지 않습니다." }, { status: 400 });
   }
 
-  const nickname = payload.nickname?.trim();
+  const username = payload.username?.trim() || payload.nickname?.trim();
+  const displayName = payload.displayName?.trim() || payload.nickname?.trim() || username;
   const neighborhood = payload.neighborhood?.trim();
   const password = payload.password ?? "";
 
-  if (!nickname || !neighborhood || !password) {
+  if (!username || !displayName || !neighborhood || !password) {
     return Response.json(
       { detail: "동네, 닉네임, 비밀번호를 모두 입력해주세요." },
       { status: 400 },
@@ -34,7 +37,9 @@ export async function POST(request: Request) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        nickname,
+        username,
+        nickname: username,
+        display_name: displayName,
         neighborhood,
         password,
         is_terms_agreed: payload.is_terms_agreed === true,

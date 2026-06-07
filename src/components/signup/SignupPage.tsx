@@ -21,6 +21,15 @@ type TokenResponse = {
   access_token: string;
   refresh_token: string;
   token_type: string;
+  user?: {
+    id?: number | string;
+    username?: string;
+    nickname?: string;
+    display_name?: string;
+    neighborhood?: string;
+    avatar_url?: string | null;
+    provider?: string;
+  };
 };
 type ErrorResponse = {
   detail?: string;
@@ -506,16 +515,20 @@ export default function SignupPage() {
               : true;
 
   const saveSession = (tokens: TokenResponse) => {
+    const user = tokens.user;
     window.localStorage.setItem("masil.accessToken", tokens.access_token);
     window.localStorage.setItem("masil.refreshToken", tokens.refresh_token);
     window.localStorage.setItem(
       "masil.user",
       JSON.stringify({
-        id: userId.trim(),
+        id: user?.username ?? userId.trim(),
+        userId: user?.id,
         email: email.trim(),
-        nickname: nickname.trim(),
-        neighborhood,
-        avatarUrl,
+        nickname: user?.display_name ?? nickname.trim(),
+        loginId: user?.username ?? user?.nickname ?? userId.trim(),
+        neighborhood: user?.neighborhood ?? neighborhood,
+        avatarUrl: user?.avatar_url ?? avatarUrl,
+        provider: user?.provider ?? "LOCAL",
         loggedInAt: new Date().toISOString(),
       }),
     );
@@ -541,7 +554,9 @@ export default function SignupPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          username: userId.trim(),
           nickname: userId.trim(),
+          displayName: nickname.trim(),
           neighborhood,
           password,
           is_terms_agreed: true,

@@ -46,7 +46,9 @@ type StoredUser = {
 
 type ApiUser = {
   id?: number;
+  username?: string;
   nickname?: string;
+  display_name?: string;
   neighborhood?: string;
   avatar_url?: string | null;
   role?: string;
@@ -334,7 +336,8 @@ export default function ProfileEditPage() {
           const nextUser = {
             ...storedUser,
             id: user.id ?? storedUser.id,
-            nickname: user.nickname ?? storedUser.nickname,
+            loginId: user.username ?? user.nickname ?? storedUser.loginId,
+            nickname: user.display_name ?? user.nickname ?? storedUser.nickname,
             neighborhood: user.neighborhood ?? storedUser.neighborhood,
             avatarUrl: user.avatar_url || storedUser.avatarUrl || AVATAR_OPTIONS[0],
             role: user.role ?? storedUser.role,
@@ -410,7 +413,8 @@ export default function ProfileEditPage() {
       const nextUser = {
         ...baseUser,
         id: data.id ?? baseUser.id,
-        nickname: data.nickname ?? nickname.trim(),
+        loginId: data.username ?? data.nickname ?? baseUser.loginId,
+        nickname: data.display_name ?? nickname.trim(),
         neighborhood: data.neighborhood ?? neighborhood,
         avatarUrl: data.avatar_url || avatarUrl,
         role: data.role ?? baseUser.role,
