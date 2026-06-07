@@ -15,6 +15,7 @@ import PhotoCameraRoundedIcon from "@mui/icons-material/PhotoCameraRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
 import { theme } from "@/styles/theme";
+import { USER_ROLE_STORAGE_KEY, type UserRole } from "@/components/community/communityData";
 
 type IdStatus = "idle" | "checking" | "available" | "taken" | "error";
 type TokenResponse = {
@@ -29,6 +30,7 @@ type TokenResponse = {
     neighborhood?: string;
     avatar_url?: string | null;
     provider?: string;
+    role?: string;
   };
 };
 type ErrorResponse = {
@@ -60,6 +62,12 @@ const AVATAR_OPTIONS = [
   "https://images.unsplash.com/photo-1495360010541-f48722b34f7d?auto=format&fit=crop&w=160&q=80",
   "https://images.unsplash.com/photo-1519052537078-e6302a4968d4?auto=format&fit=crop&w=160&q=80",
 ];
+
+function mapServerRole(role?: string | null): UserRole {
+  if (role === "OWNER") return "owner";
+  if (role === "EMPLOYEE") return "staff";
+  return "guest";
+}
 
 const Page = styled.main`
   min-height: 100dvh;
@@ -518,6 +526,7 @@ export default function SignupPage() {
     const user = tokens.user;
     window.localStorage.setItem("masil.accessToken", tokens.access_token);
     window.localStorage.setItem("masil.refreshToken", tokens.refresh_token);
+    window.localStorage.setItem(USER_ROLE_STORAGE_KEY, mapServerRole(user?.role));
     window.localStorage.setItem(
       "masil.user",
       JSON.stringify({

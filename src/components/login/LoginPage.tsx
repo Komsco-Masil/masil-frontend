@@ -10,6 +10,7 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
 import { theme } from "@/styles/theme";
+import { USER_ROLE_STORAGE_KEY, type UserRole } from "@/components/community/communityData";
 
 type TokenResponse = {
   access_token: string;
@@ -23,6 +24,7 @@ type TokenResponse = {
     neighborhood?: string;
     avatar_url?: string | null;
     provider?: string;
+    role?: string;
   };
 };
 
@@ -259,6 +261,12 @@ function normalizeError(detail: string | undefined) {
   return detail;
 }
 
+function mapServerRole(role?: string | null): UserRole {
+  if (role === "OWNER") return "owner";
+  if (role === "EMPLOYEE") return "staff";
+  return "guest";
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [userId, setUserId] = useState("");
@@ -284,6 +292,7 @@ export default function LoginPage() {
 
     window.localStorage.setItem("masil.accessToken", tokens.access_token);
     window.localStorage.setItem("masil.refreshToken", tokens.refresh_token);
+    window.localStorage.setItem(USER_ROLE_STORAGE_KEY, mapServerRole(tokens.user?.role));
     window.localStorage.setItem(
       "masil.user",
       JSON.stringify({

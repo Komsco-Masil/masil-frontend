@@ -406,6 +406,63 @@ const SettingsPanel = styled.section`
   }
 `;
 
+const ResultBackdrop = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 280;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.34);
+`;
+
+const ResultDialog = styled.section`
+  width: min(100%, 310px);
+  padding: 24px 20px 18px;
+  border-radius: 10px;
+  background: ${theme.colors.white};
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  text-align: center;
+`;
+
+const ResultMark = styled.div<{ $tone: "success" | "error" }>`
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: ${({ $tone }) => ($tone === "success" ? "#eafaf5" : "#fff0f0")};
+  color: ${({ $tone }) => ($tone === "success" ? "#27ae8c" : "#ef5a5a")};
+  font-size: 22px;
+  font-weight: 900;
+`;
+
+const ResultTitle = styled.h3`
+  margin: 0;
+  color: ${theme.colors.textPrimary};
+  font-size: 17px;
+  font-weight: 800;
+`;
+
+const ResultMessage = styled.p`
+  margin: 8px 0 18px;
+  color: ${theme.colors.textSecondary};
+  font-size: 12px;
+  line-height: 1.5;
+`;
+
+const ResultButton = styled.button<{ $tone: "success" | "error" }>`
+  width: 100%;
+  height: 40px;
+  border: 0;
+  border-radius: 8px;
+  background: ${({ $tone }) => ($tone === "success" ? "#37c9a2" : "#f2f2f2")};
+  color: ${({ $tone }) => ($tone === "success" ? theme.colors.white : theme.colors.textPrimary)};
+  font-size: 13px;
+  font-weight: 800;
+`;
+
 const ModalHandle = styled.span`
   display: block;
   width: 38px;
@@ -721,6 +778,37 @@ type VerifiedStore = {
   message?: string | null;
 };
 
+type VerifyResult = {
+  tone: "success" | "error";
+  title: string;
+  message: string;
+};
+
+type ApiUserResponse = {
+  id?: number | string;
+  username?: string | null;
+  role?: string;
+  neighborhood?: string;
+  display_name?: string | null;
+  nickname?: string;
+  avatar_url?: string | null;
+};
+
+function mapServerRole(role?: string | null): UserRole {
+  if (role === "OWNER") return "owner";
+  if (role === "EMPLOYEE") return "staff";
+  return "guest";
+}
+
+function normalizeVerifyDetail(detail: unknown) {
+  if (typeof detail === "string") {
+    if (detail === "Store already registered") return "이미 다른 계정에 등록된 사업자번호입니다.";
+    return detail;
+  }
+
+  return "입력한 사업자번호, 가게명, 대표자명을 다시 확인해주세요.";
+}
+
 function readStoredUser() {
   const raw = window.localStorage.getItem(USER_STORAGE_KEY);
   if (!raw) return null;
@@ -789,6 +877,7 @@ export default function ProfilePage() {
   const [myPosts, setMyPosts] = useState<Array<SheetEntry>>([]);
   const [myComments, setMyComments] = useState<Array<SheetEntry>>([]);
   const [likedPosts, setLikedPosts] = useState<Array<SheetEntry>>([]);
+  const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -807,6 +896,35 @@ export default function ProfilePage() {
       setRole(readUserRole());
       setVerifiedStore(readVerifiedStore());
       setAuthChecked(true);
+
+      void fetch("/api/masil/auth/me", {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      })
+        .then((response) => {
+          if (!response.ok) throw new Error("profile api unavailable");
+          return response.json() as Promise<ApiUserResponse>;
+        })
+        .then((user) => {
+          const nextRole = mapServerRole(user.role);
+          const mergedUser = {
+            ...(readStoredUser() ?? {}),
+            id: user.id ?? storedUser?.id,
+            loginId: user.username ?? storedUser?.id,
+            nickname: user.display_name ?? user.nickname ?? nextNickname,
+            neighborhood: user.neighborhood ?? storedUser?.neighborhood ?? "",
+            avatarUrl: user.avatar_url ?? storedUser?.avatarUrl ?? CAT_AVATAR_URL,
+            role: user.role,
+          };
+
+          window.localStorage.setItem(USER_ROLE_STORAGE_KEY, nextRole);
+          window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(mergedUser));
+          setRole(nextRole);
+          setNickname(mergedUser.nickname);
+          setNeighborhood(mergedUser.neighborhood);
+          setAvatarUrl(mergedUser.avatarUrl);
+        })
+        .catch(() => undefined);
 
       void fetch("/api/masil/community/me/activity", {
         headers: { Authorization: `Bearer ${token}` },
@@ -938,11 +1056,19 @@ export default function ProfilePage() {
       return;
     }
     if (!/^\d{10}$/.test(payload.business_number)) {
-      setNotice("사업자등록번호는 숫자 10자리로 입력해주세요.");
+      setVerifyResult({
+        tone: "error",
+        title: "정보가 맞지 않습니다",
+        message: "사업자등록번호는 숫자 10자리로 입력해주세요.",
+      });
       return;
     }
     if (!payload.business_number || !payload.name || !payload.representative_name) {
-      setNotice("사업자번호, 가게명, 대표자명은 꼭 입력해주세요.");
+      setVerifyResult({
+        tone: "error",
+        title: "정보가 맞지 않습니다",
+        message: "사업자번호, 가게명, 대표자명은 꼭 입력해주세요.",
+      });
       return;
     }
 
@@ -960,7 +1086,11 @@ export default function ProfilePage() {
       const data = (await response.json().catch(() => ({}))) as VerifiedStore & { detail?: string };
 
       if (!response.ok) {
-        setNotice(data.detail ?? "가맹점 인증에 실패했어요. 입력값을 다시 확인해주세요.");
+        setVerifyResult({
+          tone: "error",
+          title: "정보가 맞지 않습니다",
+          message: normalizeVerifyDetail(data.detail),
+        });
         return;
       }
 
@@ -980,16 +1110,24 @@ export default function ProfilePage() {
 
       setRole("owner");
       setVerifiedStore(data);
-      setNotice(
-        data.message ??
+      setVerifyResult({
+        tone: "success",
+        title: "확인되었습니다",
+        message:
+          data.message ??
           (data.is_manual_review
             ? "인증 서버 지연으로 수동 검토 접수됐어요. 검토 중에도 사장 권한을 사용할 수 있어요."
             : "가맹점 인증이 완료됐어요. 소상공인 익명 게시판 권한이 열렸습니다."),
-      );
-      setSettingsOpen(false);
+      });
     } finally {
       setVerifyingStore(false);
     }
+  };
+
+  const closeVerifyResult = () => {
+    const wasSuccess = verifyResult?.tone === "success";
+    setVerifyResult(null);
+    if (wasSuccess) setSettingsOpen(false);
   };
 
   const becomeGuest = () => {
@@ -1100,6 +1238,25 @@ export default function ProfilePage() {
         </IconButton>
       </Header>
       <Notice role="status">{notice}</Notice>
+      {verifyResult && (
+        <ResultBackdrop role="presentation" onClick={closeVerifyResult}>
+          <ResultDialog
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="store-verify-result-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <ResultMark $tone={verifyResult.tone} aria-hidden>
+              {verifyResult.tone === "success" ? "✓" : "!"}
+            </ResultMark>
+            <ResultTitle id="store-verify-result-title">{verifyResult.title}</ResultTitle>
+            <ResultMessage>{verifyResult.message}</ResultMessage>
+            <ResultButton type="button" $tone={verifyResult.tone} onClick={closeVerifyResult}>
+              확인
+            </ResultButton>
+          </ResultDialog>
+        </ResultBackdrop>
+      )}
       {settingsOpen && (
         <ModalBackdrop role="presentation" onClick={() => setSettingsOpen(false)}>
           <SettingsPanel
