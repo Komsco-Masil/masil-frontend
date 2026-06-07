@@ -1116,7 +1116,7 @@ export default function ProfilePage() {
         message:
           data.message ??
           (data.is_manual_review
-            ? "인증 서버 지연으로 수동 검토 접수됐어요. 검토 중에도 사장 권한을 사용할 수 있어요."
+            ? "공공데이터 응답 확인이 지연되어 확인 대기로 저장했어요. 사장 권한은 바로 사용할 수 있습니다."
             : "가맹점 인증이 완료됐어요. 소상공인 익명 게시판 권한이 열렸습니다."),
       });
     } finally {
@@ -1392,7 +1392,7 @@ export default function ProfilePage() {
                       {verifiedStore?.nts_verified
                         ? "완료"
                         : verifiedStore?.is_manual_review
-                          ? "검토중"
+                          ? "확인대기"
                           : "대기"}
                     </span>
                   </PublicDataCheck>
@@ -1405,7 +1405,7 @@ export default function ProfilePage() {
                       {verifiedStore?.gift_card_verified
                         ? "완료"
                         : verifiedStore?.is_manual_review
-                          ? "검토중"
+                          ? "확인대기"
                           : "대기"}
                     </span>
                   </PublicDataCheck>
@@ -1535,14 +1535,14 @@ export default function ProfilePage() {
             <StoreTitle>{verifiedStore?.name ?? "인증된 가맹점"}</StoreTitle>
             <StoreMeta>
               {verifiedStore?.is_manual_review
-                ? "공공데이터 수동 검토 접수"
+                ? "공공데이터 연동 확인 대기"
                 : verifiedStore?.gift_card_verified
                   ? "지역사랑상품권 가맹점"
                   : "국세청 사업자 인증 완료"} ·{" "}
               {verifiedStore?.address ?? "소상공인 게시판 이용 가능"}
             </StoreMeta>
           </div>
-          <StoreStatus>{verifiedStore?.is_manual_review ? "검토중" : "관리중"}</StoreStatus>
+          <StoreStatus>{verifiedStore?.is_manual_review ? "대기중" : "관리중"}</StoreStatus>
         </StoreCard>
       )}
       {sheet && (
