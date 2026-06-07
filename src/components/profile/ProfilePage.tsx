@@ -937,6 +937,10 @@ export default function ProfilePage() {
       router.replace("/login");
       return;
     }
+    if (!/^\d{10}$/.test(payload.business_number)) {
+      setNotice("사업자등록번호는 숫자 10자리로 입력해주세요.");
+      return;
+    }
     if (!payload.business_number || !payload.name || !payload.representative_name) {
       setNotice("사업자번호, 가게명, 대표자명은 꼭 입력해주세요.");
       return;
@@ -1255,6 +1259,8 @@ export default function ProfilePage() {
                       value={businessNumber}
                       onChange={(event) => setBusinessNumber(event.target.value)}
                       placeholder="사업자등록번호 예: 1234567890"
+                      inputMode="numeric"
+                      maxLength={12}
                       aria-label="사업자등록번호"
                     />
                     <VerifyInput
